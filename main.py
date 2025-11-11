@@ -1,101 +1,172 @@
-from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.label import Label
-from kivy.uix.button import Button
-from kivy.uix.spinner import Spinner
+from kivy.lang import Builder
 from kivy.core.audio import SoundLoader
+from kivymd.app import MDApp
+from kivymd.uix.menu import MDDropdownMenu
+from kivymd.uix.button import MDRaisedButton, MDFlatButton, MDIconButton
+from kivymd.uix.boxlayout import MDBoxLayout
+from kivymd.uix.label import MDLabel
 from datetime import datetime, timedelta
 from random import randrange
 
-# Game settings
-startYear = 1975
-endYear = 2025
-count = 5
+KV = """
+<MainScreen>:
+    orientation: "vertical"
+    spacing: "20dp"
+    padding: "30dp"
+    md_bg_color: app.theme_cls.bg_normal
 
-# Sound files
-good = "good.mp3"
-bad = "bad.mp3"
-perfect = "perfect.mp3"
-meh = "fail.mp3"
+    MDLabel:
+        id: title_label
+        halign: "center"
+        theme_text_color: "Primary"
+        font_style: "H5"
+        text: "Guess the Day of the Week!"
 
-options = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+    MDCard:
+        orientation: "vertical"
+        padding: "20dp"
+        radius: 20
+        size_hint_y: None
+        height: "200dp"
+        md_bg_color: app.theme_cls.bg_light
+
+        MDLabel:
+            id: question_label
+            halign: "center"
+            theme_text_color: "Primary"
+            font_style: "Body1"
+            text: ""
+
+        MDBoxLayout:
+            orientation: "horizontal"
+            spacing: "10dp"
+            size_hint_y: None
+            height: "48dp"
+
+            # Left side: dropdown
+            MDBoxLayout:
+                adaptive_height: True
+                spacing: "5dp"
+                MDIconButton:
+                    icon: "menu-down"
+                    on_release: app.menu.open()
+                MDRaisedButton:
+                    id: dropdown_button
+                    text: "Select Day"
+                    md_bg_color: app.theme_cls.primary_color
+                    text_color: 1, 1, 1, 1
+                    on_release: app.menu.open()
+
+            Widget:  # acts as a flexible spacer
+
+            # Right side: submit button
+            MDRaisedButton:
+                text: "Submit"
+                size_hint_x: None
+                width: "120dp"
+                md_bg_color: app.theme_cls.primary_color
+                on_release: app.update()
+
+    MDFlatButton:
+        text: "Restart"
+        pos_hint: {"center_x": 0.5}
+        on_release: app.restart()
+
+"""
+
+options = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 def playit(soundfile):
     sound = SoundLoader.load(soundfile)
     if sound:
         sound.play()
 
-def randomDate(start, end):
-    d1 = datetime.strptime(f'1/1/{startYear} 12:00 AM', '%m/%d/%Y %I:%M %p')
-    d2 = datetime.strptime(f'12/31/{endYear} 11:59 PM', '%m/%d/%Y %I:%M %p')
+def randomDate(startYear, endYear):
+    d1 = datetime.strptime(f'1/1/{startYear}', '%m/%d/%Y')
+    d2 = datetime.strptime(f'12/31/{endYear}', '%m/%d/%Y')
     delta = d2 - d1
-    intDelta = (delta.days * 24 * 60 * 60) + delta.seconds
-    randomSecond = randrange(intDelta)
-    x = d1 + timedelta(seconds=randomSecond)
-    date_str = x.strftime('%-m/%-d/%Y')
-    return date_str
+    random_second = randrange(delta.days * 86400)
+    x = d1 + timedelta(seconds=random_second)
+    return x.strftime('%m/%d/%Y')
 
 def getDay(dateString):
     dateObject = datetime.strptime(dateString, "%m/%d/%Y").date()
-    dayNumber = dateObject.weekday()
-    return options[dayNumber]
+    return options[dateObject.weekday()]
 
-class DayOfWeekGame(App):
+class MainScreen(MDBoxLayout):
+    pass
+
+class DayOfWeekGame(MDApp):
     def build(self):
+        self.title = "Day Guess Game"
+        self.theme_cls.primary_palette = "DeepPurple"
+        self.theme_cls.theme_style = "Dark"
+
+        Builder.load_string(KV)
+        self.root = MainScreen()
+
+        self.startYear = 1975
+        self.endYear = 2025
+        self.count = 5
         self.points = 0
         self.x = 0
-        self.dates = [randomDate(startYear,endYear) for _ in range(count)]
+        self.dates = [randomDate(self.startYear, self.endYear) for _ in range(self.count)]
 
-        self.layout = BoxLayout(orientation='vertical', padding=10, spacing=10)
-        
-        self.label = Label(text=self.get_label_text())
-        self.layout.add_widget(self.label)
-        
-        self.spinner = Spinner(text='Sunday', values=options)
-        self.layout.add_widget(self.spinner)
-        
-        self.submit_btn = Button(text="Submit", on_press=self.update)
-        self.layout.add_widget(self.submit_btn)
-        
-        self.restart_btn = Button(text="Restart", on_press=self.restart)
-        self.layout.add_widget(self.restart_btn)
-        
-        return self.layout
+        self.root.ids.question_label.text = self.get_label_text()
+
+        menu_items = [
+            {"text": day, "viewclass": "OneLineListItem", "on_release": lambda x=day: self.set_day(x)}
+            for day in options
+        ]
+        self.menu = MDDropdownMenu(
+            caller=self.root.ids.dropdown_button,
+            items=menu_items,
+            width_mult=4,
+        )
+        self.selected_day = None
+        return self.root
 
     def get_label_text(self):
-        if self.x < count:
-            return f"{self.x+1} of {count}\nPick a Day-of-the-Week\nfor {self.dates[self.x]}"
+        if self.x < self.count:
+            return f"{self.x+1} of {self.count}\nPick a Day for:\n\n{self.dates[self.x]}"
         else:
-            return f"Game Over!\n{self.points} out of {count} correct!"
+            return f"Game Over!\nYou got {self.points} of {self.count} correct!"
 
-    def update(self, instance):
-        if self.x >= count:
+    def set_day(self, day):
+        self.selected_day = day
+        self.root.ids.dropdown_button.text = day
+        self.menu.dismiss()
+
+    def update(self):
+        if self.x >= self.count or not self.selected_day:
             return
 
         reality = getDay(self.dates[self.x])
-        picked = self.spinner.text
+        picked = self.selected_day
 
         if reality == picked:
             self.points += 1
-            playit(good)
+            playit("good.mp3")
         else:
-            playit(bad)
+            playit("bad.mp3")
 
         self.x += 1
-        if self.x == count:
-            if self.points == count:
-                playit(perfect)
+
+        if self.x == self.count:
+            if self.points == self.count:
+                playit("perfect.mp3")
             else:
-                playit(meh)
+                playit("fail.mp3")
 
-        self.label.text = self.get_label_text()
+        self.root.ids.question_label.text = self.get_label_text()
 
-    def restart(self, instance):
+    def restart(self):
         self.points = 0
         self.x = 0
-        self.dates = [randomDate(startYear,endYear) for _ in range(count)]
-        self.label.text = self.get_label_text()
-        self.spinner.text = 'Sunday'
+        self.dates = [randomDate(self.startYear, self.endYear) for _ in range(self.count)]
+        self.root.ids.question_label.text = self.get_label_text()
+        self.root.ids.dropdown_button.text = "Select Day"
+        self.selected_day = None
 
 if __name__ == "__main__":
     DayOfWeekGame().run()

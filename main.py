@@ -10,7 +10,7 @@ from random import randrange
 # Game settings
 startYear = 1974
 endYear = 2024
-count = 10
+count = 5
 
 # Sound files
 good = "good.mp3"

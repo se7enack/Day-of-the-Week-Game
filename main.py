@@ -8,8 +8,8 @@ from datetime import datetime, timedelta
 from random import randrange
 
 # Game settings
-startYear = 1974
-endYear = 2024
+startYear = 1975
+endYear = 2025
 count = 5
 
 # Sound files

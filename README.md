@@ -1,4 +1,4 @@
-# Day-of-the-Week-Champ
+# Day-of-the-Week-Game
 Game that tests your knowledge of a given dates day-of-the-week
 
 

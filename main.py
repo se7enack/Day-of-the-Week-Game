@@ -2,6 +2,7 @@ from kivy.lang import Builder
 from kivy.core.audio import SoundLoader
 from kivy.core.window import Window
 from kivy.metrics import dp
+from kivy.clock import Clock
 from kivymd.app import MDApp
 from kivymd.uix.menu import MDDropdownMenu
 from kivymd.uix.button import MDRaisedButton, MDFlatButton
@@ -46,16 +47,18 @@ KV = """
             height: "48dp"
             padding: "10dp"
 
+            # Left side: dropdown button
             MDRaisedButton:
                 id: dropdown_button
                 text: "Day"
                 size_hint_x: 0.5
                 md_bg_color: app.theme_cls.primary_color
                 text_color: 1, 1, 1, 1
-                on_release: app.open_menu()
+                on_release: app.open_menu()  # ✅ Fixed here
 
-            Widget:
+            Widget:  # spacer
 
+            # Right side: submit button
             MDRaisedButton:
                 text: "Submit"
                 size_hint_x: 0.3
@@ -68,14 +71,18 @@ KV = """
         on_release: app.restart()
 """
 
+# Days of the week
 options = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
 
 def playit(soundfile):
     sound = SoundLoader.load(soundfile)
     if sound:
         sound.play()
 
+
 def randomDate(startYear, endYear):
+    """Generate a random date between the given years."""
     d1 = datetime.strptime(f'1/1/{startYear}', '%m/%d/%Y')
     d2 = datetime.strptime(f'12/31/{endYear}', '%m/%d/%Y')
     delta = d2 - d1
@@ -83,22 +90,27 @@ def randomDate(startYear, endYear):
     x = d1 + timedelta(seconds=random_second)
     return x.strftime('%m/%d/%Y')
 
+
 def getDay(dateString):
+    """Return the day of week for the given date string."""
     dateObject = datetime.strptime(dateString, "%m/%d/%Y").date()
     return options[dateObject.weekday()]
+
 
 class MainScreen(MDBoxLayout):
     pass
 
+
 class DayOfWeekGame(MDApp):
     def build(self):
-        self.title = "Guess the Day of the Week Game"
+        self.title = "Day Guess Game"
         self.theme_cls.primary_palette = "DeepPurple"
         self.theme_cls.theme_style = "Dark"
 
         Builder.load_string(KV)
         self.root = MainScreen()
 
+        # Game state setup
         self.startYear = 1975
         self.endYear = 2025
         self.count = 5
@@ -107,52 +119,43 @@ class DayOfWeekGame(MDApp):
         self.dates = [randomDate(self.startYear, self.endYear) for _ in range(self.count)]
 
         self.root.ids.question_label.text = self.get_label_text()
+        self.selected_day = None
 
-        # Create menu items
+        return self.root
+
+    def get_label_text(self):
+        """Update question or show final score."""
+        if self.x < self.count:
+            return f"{self.x+1} of {self.count}\n\n{self.dates[self.x]}\n"
+        else:
+            return f"Game Over!\nYou got {self.points} of {self.count} correct!"
+
+    def open_menu(self):
+        """Recreate and open the dropdown menu each time (fixes Android bug)."""
         menu_items = [
             {"text": day, "viewclass": "OneLineListItem", "on_release": lambda x=day: self.set_day(x)}
             for day in options
         ]
 
-        # Fixed width and behavior
         self.menu = MDDropdownMenu(
             caller=self.root.ids.dropdown_button,
             items=menu_items,
             width_mult=3,
-            max_height=dp(340),
             position="auto",
+            ver_growth="up",
         )
 
-        self.selected_day = None
-        return self.root
-
-    def open_menu(self):
-        """Ensure the dropdown stays inside the window before opening."""
-        menu_width = self.menu.width
-        caller = self.root.ids.dropdown_button
-        x, _ = caller.to_window(caller.x, caller.y)
-        screen_w = Window.width
-
-        # If the menu would go off the right side, shift to left alignment
-        if x + menu_width > screen_w:
-            self.menu.position = "center"  # shift positioning to stay visible
-        else:
-            self.menu.position = "auto"
-
-        self.menu.open()
-
-    def get_label_text(self):
-        if self.x < self.count:
-            return f"{self.x+1} of {self.count}\n\nWhich Day of the Week?\n\n{self.dates[self.x]}"
-        else:
-            return f"Game Over!\nYou got {self.points} of {self.count} correct!"
+        # Delay helps Android properly position the menu
+        Clock.schedule_once(lambda dt: self.menu.open(), 0.05)
 
     def set_day(self, day):
+        """Handle user day selection."""
         self.selected_day = day
         self.root.ids.dropdown_button.text = day
         self.menu.dismiss()
 
     def update(self):
+        """Check answer and move to next date."""
         if self.x >= self.count or not self.selected_day:
             return
 
@@ -168,6 +171,7 @@ class DayOfWeekGame(MDApp):
         self.x += 1
 
         if self.x == self.count:
+            # Play final sound
             if self.points == self.count:
                 playit("perfect.mp3")
             else:
@@ -176,6 +180,7 @@ class DayOfWeekGame(MDApp):
         self.root.ids.question_label.text = self.get_label_text()
 
     def restart(self):
+        """Restart the game."""
         self.points = 0
         self.x = 0
         self.dates = [randomDate(self.startYear, self.endYear) for _ in range(self.count)]

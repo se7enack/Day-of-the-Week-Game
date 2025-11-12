@@ -1,105 +1,108 @@
 from kivy.lang import Builder
 from kivy.core.audio import SoundLoader
-from kivy.core.window import Window
-from kivy.metrics import dp
 from kivy.clock import Clock
+from kivy.animation import Animation
 from kivymd.app import MDApp
 from kivymd.uix.menu import MDDropdownMenu
 from kivymd.uix.button import MDRaisedButton, MDFlatButton
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
+from kivy.uix.image import Image
+from kivy.uix.floatlayout import FloatLayout
+from kivy.metrics import dp
 from datetime import datetime, timedelta
 from random import randrange
 
 KV = """
 <MainScreen>:
-    orientation: "vertical"
-    spacing: "20dp"
-    padding: "30dp"
-    md_bg_color: app.theme_cls.bg_normal
-
-    MDLabel:
-        id: title_label
-        halign: "center"
-        theme_text_color: "Primary"
-        font_style: "H5"
-        text: "Guess the Day of the Week!"
-
-    MDCard:
+    # FloatLayout allows overlaying GIFs on top
+    MDBoxLayout:
+        id: main_layout
         orientation: "vertical"
-        padding: "20dp"
-        radius: 20
-        size_hint_y: None
-        height: "200dp"
-        md_bg_color: app.theme_cls.bg_light
+        spacing: "20dp"
+        padding: "30dp"
+        md_bg_color: app.theme_cls.bg_normal
 
         MDLabel:
-            id: question_label
+            id: title_label
             halign: "center"
             theme_text_color: "Primary"
-            font_style: "Body1"
-            text: ""
+            font_style: "H5"
+            text: "Guess the Day of the Week!"
 
-        MDBoxLayout:
-            orientation: "horizontal"
-            spacing: "10dp"
+        MDCard:
+            id: card
+            orientation: "vertical"
+            padding: "20dp"
+            radius: 20
             size_hint_y: None
-            height: "48dp"
-            padding: "10dp"
+            height: "200dp"
+            md_bg_color: app.theme_cls.bg_light
 
-            # Left side: dropdown button
-            MDRaisedButton:
-                id: dropdown_button
-                text: "Day"
-                size_hint_x: 0.5
-                md_bg_color: app.theme_cls.primary_color
-                text_color: 1, 1, 1, 1
-                on_release: app.open_menu()  # ✅ Fixed here
+            MDLabel:
+                id: question_label
+                halign: "center"
+                theme_text_color: "Primary"
+                font_style: "Body1"
+                text: ""
 
-            Widget:  # spacer
+            MDBoxLayout:
+                orientation: "horizontal"
+                spacing: "10dp"
+                size_hint_y: None
+                height: "48dp"
+                padding: "10dp"
 
-            # Right side: submit button
-            MDRaisedButton:
-                text: "Submit"
-                size_hint_x: 0.3
-                md_bg_color: app.theme_cls.primary_color
-                on_release: app.update()
+                MDRaisedButton:
+                    id: dropdown_button
+                    text: "Day"
+                    size_hint: None, None
+                    size: dp(140), dp(48)
+                    md_bg_color: app.theme_cls.primary_color
+                    text_color: 1, 1, 1, 1
+                    on_release: app.open_menu()
+                    shorten: True
+                    shorten_from: "center"
+                    text_size: self.size
+                    font_size: self.height * 0.4
+                    halign: "center"
 
-    MDFlatButton:
-        text: "Restart"
-        pos_hint: {"center_x": 0.5}
-        on_release: app.restart()
+                Widget:
+
+                MDRaisedButton:
+                    text: "Submit"
+                    size_hint: None, None
+                    size: dp(140), dp(48)
+                    md_bg_color: app.theme_cls.primary_color
+                    text_color: 1, 1, 1, 1
+                    shorten: True
+                    shorten_from: "center"
+                    text_size: self.size
+                    font_size: self.height * 0.4
+                    halign: "center"
+                    on_release: app.update()
+
+        MDFlatButton:
+            text: "Restart"
+            pos_hint: {"center_x": 0.5}
+            on_release: app.restart()
 """
 
-# Days of the week
 options = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-
-def playit(soundfile):
-    sound = SoundLoader.load(soundfile)
-    if sound:
-        sound.play()
-
-
 def randomDate(startYear, endYear):
-    """Generate a random date between the given years."""
     d1 = datetime.strptime(f'1/1/{startYear}', '%m/%d/%Y')
     d2 = datetime.strptime(f'12/31/{endYear}', '%m/%d/%Y')
     delta = d2 - d1
     random_second = randrange(delta.days * 86400)
-    x = d1 + timedelta(seconds=random_second)
-    return x.strftime('%m/%d/%Y')
-
+    return (d1 + timedelta(seconds=random_second)).strftime('%m/%d/%Y')
 
 def getDay(dateString):
-    """Return the day of week for the given date string."""
     dateObject = datetime.strptime(dateString, "%m/%d/%Y").date()
     return options[dateObject.weekday()]
 
-
-class MainScreen(MDBoxLayout):
+class MainScreen(FloatLayout):
     pass
-
 
 class DayOfWeekGame(MDApp):
     def build(self):
@@ -110,84 +113,100 @@ class DayOfWeekGame(MDApp):
         Builder.load_string(KV)
         self.root = MainScreen()
 
-        # Game state setup
+        # Preload sounds
+        self.sounds = {name: SoundLoader.load(f"{name}.wav") for name in ["good","bad","perfect","fail"]}
+
+        # Preload GIFs into memory (opacity=0)
+        self.end_gifs = {
+            "perfect": Image(source="perfect.gif", allow_stretch=True, keep_ratio=False,
+                             anim_delay=0.05, size_hint=(1,1), opacity=0),
+            "fail": Image(source="fail.gif", allow_stretch=True, keep_ratio=False,
+                          anim_delay=0.05, size_hint=(1,1), opacity=0)
+        }
+        for gif in self.end_gifs.values():
+            self.root.add_widget(gif)
+
+        # Game setup
         self.startYear = 1975
         self.endYear = 2025
         self.count = 5
         self.points = 0
         self.x = 0
         self.dates = [randomDate(self.startYear, self.endYear) for _ in range(self.count)]
-
-        self.root.ids.question_label.text = self.get_label_text()
         self.selected_day = None
+        self.root.ids.question_label.text = self.get_label_text()
 
         return self.root
 
+    def playit(self, name):
+        snd = self.sounds.get(name)
+        if snd:
+            snd.stop()
+            snd.play()
+
+    def flash_card(self, correct=True):
+        card = self.root.ids.card
+        original_color = self.theme_cls.bg_light
+        flash_color = (0,1,0,0.4) if correct else (1,0,0,0.4)
+        anim = Animation(md_bg_color=flash_color, duration=0.15) + Animation(md_bg_color=original_color, duration=0.4)
+        anim.start(card)
+
+    def show_end_gif(self, name):
+        gif = self.end_gifs.get(name)
+        if not gif:
+            return
+        gif.opacity = 1
+        anim = Animation(opacity=0, duration=0.8)
+        Clock.schedule_once(lambda dt: anim.start(gif), 3)
+
     def get_label_text(self):
-        """Update question or show final score."""
         if self.x < self.count:
             return f"{self.x+1} of {self.count}\n\n{self.dates[self.x]}\n"
         else:
             return f"Game Over!\nYou got {self.points} of {self.count} correct!"
 
     def open_menu(self):
-        """Recreate and open the dropdown menu each time (fixes Android bug)."""
-        menu_items = [
-            {"text": day, "viewclass": "OneLineListItem", "on_release": lambda x=day: self.set_day(x)}
-            for day in options
-        ]
-
-        self.menu = MDDropdownMenu(
-            caller=self.root.ids.dropdown_button,
-            items=menu_items,
-            width_mult=3,
-            position="auto",
-            ver_growth="up",
-        )
-
-        # Delay helps Android properly position the menu
+        menu_items = [{"text": day, "viewclass":"OneLineListItem", "on_release": lambda x=day: self.set_day(x)} for day in options]
+        self.menu = MDDropdownMenu(caller=self.root.ids.dropdown_button, items=menu_items, width_mult=3, position="auto", ver_growth="up")
         Clock.schedule_once(lambda dt: self.menu.open(), 0.05)
 
     def set_day(self, day):
-        """Handle user day selection."""
         self.selected_day = day
         self.root.ids.dropdown_button.text = day
         self.menu.dismiss()
 
     def update(self):
-        """Check answer and move to next date."""
         if self.x >= self.count or not self.selected_day:
             return
-
         reality = getDay(self.dates[self.x])
         picked = self.selected_day
-
         if reality == picked:
             self.points += 1
-            playit("good.mp3")
+            self.playit("good")
+            self.flash_card(True)
         else:
-            playit("bad.mp3")
+            self.playit("bad")
+            self.flash_card(False)
 
         self.x += 1
 
         if self.x == self.count:
-            # Play final sound
             if self.points == self.count:
-                playit("perfect.mp3")
+                self.show_end_gif("perfect")
+                self.playit("perfect")
             else:
-                playit("fail.mp3")
+                self.show_end_gif("fail")
+                self.playit("fail")
 
         self.root.ids.question_label.text = self.get_label_text()
 
     def restart(self):
-        """Restart the game."""
         self.points = 0
         self.x = 0
-        self.dates = [randomDate(self.startYear, self.endYear) for _ in range(self.count)]
+        self.dates = [randomDate(self.startYear,self.endYear) for _ in range(self.count)]
         self.root.ids.question_label.text = self.get_label_text()
         self.root.ids.dropdown_button.text = "Day"
         self.selected_day = None
-
 
 if __name__ == "__main__":
     DayOfWeekGame().run()

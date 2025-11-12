@@ -13,7 +13,7 @@ pip3 install -r requirements.txt
 ```
 
 ## Usage: 
-```./game.py```
+```python3 ./main.py```
 
 
 <img width="296" alt="1" src="https://github.com/user-attachments/assets/e6a293b7-5312-4407-b26f-646fc522673d">

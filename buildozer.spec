@@ -13,7 +13,7 @@ package.domain = com.getburke
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,mp3,ico
+source.include_exts = py,mp3,png
 
 # (list) List of inclusions using pattern matching
 #source.include_patterns = assets/*,images/*.png
@@ -48,7 +48,7 @@ requirements = python3,kivy,kivymd,pillow
 
 # (str) Icon of the application
 #icon.filename = %(source.dir)s/data/icon.ico
-icon.filename = icon.ico
+icon.filename = icon.png
 
 # (list) Supported orientations
 # Valid options are: landscape, portrait, portrait-reverse or landscape-reverse
@@ -91,8 +91,8 @@ fullscreen = 0
 #android.presplash_lottie = "path/to/lottie/file.json"
 
 # (str) Adaptive icon of the application (used if Android API level is 26+ at runtime)
-#icon.adaptive_foreground.filename = icon.ico
-#icon.adaptive_background.filename = icon.ico
+#icon.adaptive_foreground.filename = icon.png
+#icon.adaptive_background.filename = icon.png
 
 # (list) Permissions
 # (See https://python-for-android.readthedocs.io/en/latest/buildoptions/#build-options-1 for all the supported syntaxes and properties)

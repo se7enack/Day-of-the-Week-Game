@@ -42,28 +42,23 @@ KV = """
             spacing: "10dp"
             size_hint_y: None
             height: "48dp"
+            padding: "10dp"
 
-            # Left side: dropdown
-            MDBoxLayout:
-                adaptive_height: True
-                spacing: "5dp"
-                MDIconButton:
-                    icon: "menu-down"
-                    on_release: app.menu.open()
-                MDRaisedButton:
-                    id: dropdown_button
-                    text: "Select Day"
-                    md_bg_color: app.theme_cls.primary_color
-                    text_color: 1, 1, 1, 1
-                    on_release: app.menu.open()
+            # Left side: dropdown button only
+            MDRaisedButton:
+                id: dropdown_button
+                text: "Day"
+                size_hint_x: 0.5
+                md_bg_color: app.theme_cls.primary_color
+                text_color: 1, 1, 1, 1
+                on_release: app.menu.open()
 
-            Widget:  # acts as a flexible spacer
+            Widget:  # flexible spacer
 
             # Right side: submit button
             MDRaisedButton:
                 text: "Submit"
-                size_hint_x: None
-                width: "120dp"
+                size_hint_x: 0.3
                 md_bg_color: app.theme_cls.primary_color
                 on_release: app.update()
 
@@ -128,7 +123,7 @@ class DayOfWeekGame(MDApp):
 
     def get_label_text(self):
         if self.x < self.count:
-            return f"{self.x+1} of {self.count}\nPick a Day for:\n\n{self.dates[self.x]}"
+            return f"{self.x+1} of {self.count}\n\nWhat day did this date fall on?\n\n{self.dates[self.x]}"
         else:
             return f"Game Over!\nYou got {self.points} of {self.count} correct!"
 
@@ -165,7 +160,7 @@ class DayOfWeekGame(MDApp):
         self.x = 0
         self.dates = [randomDate(self.startYear, self.endYear) for _ in range(self.count)]
         self.root.ids.question_label.text = self.get_label_text()
-        self.root.ids.dropdown_button.text = "Select Day"
+        self.root.ids.dropdown_button.text = "Day"
         self.selected_day = None
 
 if __name__ == "__main__":

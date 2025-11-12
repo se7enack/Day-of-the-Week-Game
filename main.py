@@ -1,8 +1,10 @@
 from kivy.lang import Builder
 from kivy.core.audio import SoundLoader
+from kivy.core.window import Window
+from kivy.metrics import dp
 from kivymd.app import MDApp
 from kivymd.uix.menu import MDDropdownMenu
-from kivymd.uix.button import MDRaisedButton, MDFlatButton, MDIconButton
+from kivymd.uix.button import MDRaisedButton, MDFlatButton
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from datetime import datetime, timedelta
@@ -44,18 +46,16 @@ KV = """
             height: "48dp"
             padding: "10dp"
 
-            # Left side: dropdown button only
             MDRaisedButton:
                 id: dropdown_button
                 text: "Day"
                 size_hint_x: 0.5
                 md_bg_color: app.theme_cls.primary_color
                 text_color: 1, 1, 1, 1
-                on_release: app.menu.open()
+                on_release: app.open_menu()
 
-            Widget:  # flexible spacer
+            Widget:
 
-            # Right side: submit button
             MDRaisedButton:
                 text: "Submit"
                 size_hint_x: 0.3
@@ -66,7 +66,6 @@ KV = """
         text: "Restart"
         pos_hint: {"center_x": 0.5}
         on_release: app.restart()
-
 """
 
 options = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -93,7 +92,7 @@ class MainScreen(MDBoxLayout):
 
 class DayOfWeekGame(MDApp):
     def build(self):
-        self.title = "Day Guess Game"
+        self.title = "Guess the Day of the Week Game"
         self.theme_cls.primary_palette = "DeepPurple"
         self.theme_cls.theme_style = "Dark"
 
@@ -109,21 +108,42 @@ class DayOfWeekGame(MDApp):
 
         self.root.ids.question_label.text = self.get_label_text()
 
+        # Create menu items
         menu_items = [
             {"text": day, "viewclass": "OneLineListItem", "on_release": lambda x=day: self.set_day(x)}
             for day in options
         ]
+
+        # Fixed width and behavior
         self.menu = MDDropdownMenu(
             caller=self.root.ids.dropdown_button,
             items=menu_items,
-            width_mult=4,
+            width_mult=3,
+            max_height=dp(340),
+            position="auto",
         )
+
         self.selected_day = None
         return self.root
 
+    def open_menu(self):
+        """Ensure the dropdown stays inside the window before opening."""
+        menu_width = self.menu.width
+        caller = self.root.ids.dropdown_button
+        x, _ = caller.to_window(caller.x, caller.y)
+        screen_w = Window.width
+
+        # If the menu would go off the right side, shift to left alignment
+        if x + menu_width > screen_w:
+            self.menu.position = "center"  # shift positioning to stay visible
+        else:
+            self.menu.position = "auto"
+
+        self.menu.open()
+
     def get_label_text(self):
         if self.x < self.count:
-            return f"{self.x+1} of {self.count}\n\nWhat day did this date fall on?\n\n{self.dates[self.x]}"
+            return f"{self.x+1} of {self.count}\n\nWhich Day of the Week?\n\n{self.dates[self.x]}"
         else:
             return f"Game Over!\nYou got {self.points} of {self.count} correct!"
 
@@ -162,6 +182,7 @@ class DayOfWeekGame(MDApp):
         self.root.ids.question_label.text = self.get_label_text()
         self.root.ids.dropdown_button.text = "Day"
         self.selected_day = None
+
 
 if __name__ == "__main__":
     DayOfWeekGame().run()
